@@ -42,8 +42,11 @@ jobs:
           cp .build/release/DittoMac "$APP/Contents/MacOS/"
           cp Info.plist "$APP/Contents/"
           printf 'APPLDiMc' > "$APP/Contents/PkgInfo"
-          # Ad-hoc sign so macOS shows "unidentified developer" instead of "damaged"
-          codesign --force --deep --sign - "$APP"
+          # Intentionally NOT code-signed.
+          # Ad-hoc signing changes the TCC identity every build, causing
+          # repeated Accessibility permission prompts. Unsigned apps are
+          # tracked by bundle path in TCC, so the grant persists across updates.
+          # Users remove quarantine with xattr -dr after downloading.
 
       - name: Create DMG
         run: |
