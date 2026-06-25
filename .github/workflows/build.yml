@@ -1,0 +1,78 @@
+name: Build & Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (e.g. v1.0.0)"
+        required: true
+        default: "v1.0.0"
+
+jobs:
+  build:
+    name: Build DittoMac
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history for release notes
+
+      - name: Select Xcode (provides Swift toolchain)
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Resolve dependencies
+        run: swift package resolve
+
+      - name: Build release binary
+        run: swift build -c release
+
+      - name: Package .app bundle
+        run: |
+          APP=DittoMac.app
+          rm -rf "$APP"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp .build/release/DittoMac "$APP/Contents/MacOS/"
+          cp Info.plist "$APP/Contents/"
+          printf 'APPLDiMc' > "$APP/Contents/PkgInfo"
+          echo "Packaged $APP"
+
+      - name: Zip the app
+        run: |
+          zip -r DittoMac.zip DittoMac.app
+          echo "zip_size=$(du -sh DittoMac.zip | cut -f1)" >> "$GITHUB_ENV"
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          TAG="${{ github.event.inputs.version }}"
+          # Find the previous tag; fall back to the first commit if none
+          PREV=$(git tag --sort=-version:refname | grep -v "^$TAG$" | head -1)
+          if [ -z "$PREV" ]; then
+            RANGE="HEAD"
+            HEADER="Initial release"
+          else
+            RANGE="${PREV}..HEAD"
+            HEADER="Changes since $PREV"
+          fi
+          COMMITS=$(git log "$RANGE" --pretty=format:"- %s (%h)" 2>/dev/null || echo "- Initial release")
+          BODY="## $HEADER"$'\n\n'"$COMMITS"$'\n\n'"**Asset:** \`DittoMac.zip\` (${zip_size})"
+          echo "body<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$BODY"  >> "$GITHUB_OUTPUT"
+          echo "EOF"    >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: DittoMac ${{ github.event.inputs.version }}
+          body: ${{ steps.notes.outputs.body }}
+          files: DittoMac.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

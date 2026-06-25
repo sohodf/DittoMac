@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>DittoMac</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.dittomac.app</string>
+    <key>CFBundleName</key>
+    <string>DittoMac</string>
+    <key>CFBundleDisplayName</key>
+    <string>DittoMac</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleSignature</key>
+    <string>DIMC</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>DittoMac uses keyboard events to paste clipboard content into other apps.</string>
+    <key>NSPasteboardUsageDescription</key>
+    <string>DittoMac monitors the clipboard to save your copy history.</string>
+</dict>
+</plist>
