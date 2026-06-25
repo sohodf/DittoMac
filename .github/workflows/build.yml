@@ -20,9 +20,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history for release notes
+          fetch-depth: 0
 
-      - name: Select Xcode (provides Swift toolchain)
+      - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
 
       - name: Swift version
@@ -42,18 +42,27 @@ jobs:
           cp .build/release/DittoMac "$APP/Contents/MacOS/"
           cp Info.plist "$APP/Contents/"
           printf 'APPLDiMc' > "$APP/Contents/PkgInfo"
-          echo "Packaged $APP"
+          # Ad-hoc sign so macOS shows "unidentified developer" instead of "damaged"
+          codesign --force --deep --sign - "$APP"
 
-      - name: Zip the app
+      - name: Create DMG
         run: |
-          zip -r DittoMac.zip DittoMac.app
-          echo "zip_size=$(du -sh DittoMac.zip | cut -f1)" >> "$GITHUB_ENV"
+          mkdir -p dmg_staging
+          cp -r DittoMac.app dmg_staging/
+          ln -s /Applications dmg_staging/Applications
+          hdiutil create \
+            -volname "DittoMac" \
+            -srcfolder dmg_staging \
+            -ov -format UDZO \
+            DittoMac.dmg
+          DMG_SIZE=$(du -sh DittoMac.dmg | cut -f1)
+          echo "dmg_size=$DMG_SIZE" >> "$GITHUB_ENV"
+          rm -rf dmg_staging DittoMac.app .build
 
       - name: Generate release notes
         id: notes
         run: |
           TAG="${{ github.event.inputs.version }}"
-          # Find the previous tag; fall back to the first commit if none
           PREV=$(git tag --sort=-version:refname | grep -v "^$TAG$" | head -1)
           if [ -z "$PREV" ]; then
             RANGE="HEAD"
@@ -63,10 +72,29 @@ jobs:
             HEADER="Changes since $PREV"
           fi
           COMMITS=$(git log "$RANGE" --pretty=format:"- %s (%h)" 2>/dev/null || echo "- Initial release")
-          BODY="## $HEADER"$'\n\n'"$COMMITS"$'\n\n'"**Asset:** \`DittoMac.zip\` (${zip_size})"
+          BODY=$(cat <<NOTES
+          ## $HEADER
+
+          $COMMITS
+
+          ---
+
+          ### Install
+
+          1. Download **DittoMac.dmg** and open it
+          2. Drag **DittoMac.app** to your Applications folder
+          3. Remove the macOS quarantine flag (required for unsigned apps):
+          \`\`\`bash
+          xattr -dr com.apple.quarantine /Applications/DittoMac.app
+          \`\`\`
+          4. Open DittoMac — grant **Accessibility** permission when prompted
+
+          **Asset:** \`DittoMac.dmg\` (${{ env.dmg_size }})
+          NOTES
+          )
           echo "body<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$BODY"  >> "$GITHUB_OUTPUT"
-          echo "EOF"    >> "$GITHUB_OUTPUT"
+          echo "$BODY"    >> "$GITHUB_OUTPUT"
+          echo "EOF"      >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -74,8 +102,6 @@ jobs:
           tag_name: ${{ github.event.inputs.version }}
           name: DittoMac ${{ github.event.inputs.version }}
           body: ${{ steps.notes.outputs.body }}
-          files: DittoMac.zip
-          draft: false
-          prerelease: false
+          files: DittoMac.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

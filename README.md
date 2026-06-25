@@ -86,18 +86,17 @@ Sources/DittoMac/
 | Paste simulation | `CGEvent` → `.cghidEventTap` |
 | Build | Swift Package Manager + Makefile |
 
-## Distribution
+## Install from release
 
-Download the latest release from the [Releases](https://github.com/sohodf/DittoMac/releases) page. The release asset is a zip containing `DittoMac.app`.
-
-Because the app is unsigned (no Apple Developer ID), macOS Gatekeeper will block it on first open. To allow it:
+1. Download **DittoMac.dmg** from the [Releases](https://github.com/sohodf/DittoMac/releases) page
+2. Open the DMG and drag **DittoMac.app** to Applications
+3. Remove the macOS quarantine flag (required for apps not signed with an Apple Developer ID):
 
 ```bash
-xattr -dr com.apple.quarantine DittoMac.app
-open DittoMac.app
+xattr -dr com.apple.quarantine /Applications/DittoMac.app
 ```
 
-Or right-click → Open → Open in the Finder.
+4. Open DittoMac — grant **Accessibility** permission when prompted (needed for paste simulation)
 
 ## Database location
 
