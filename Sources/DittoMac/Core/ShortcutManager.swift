@@ -10,6 +10,7 @@ enum ShortcutAction: String, CaseIterable, Identifiable {
     case togglePopup
     case paste
     case pastePlainText
+    case copyToClipboard
     case pin
     case delete
     case dismiss
@@ -20,16 +21,17 @@ enum ShortcutAction: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .togglePopup:     return "Open / Close Popup"
-        case .paste:           return "Paste Selected"
-        case .pastePlainText:  return "Paste as Plain Text"
-        case .pin:             return "Toggle Pin"
-        case .delete:          return "Delete Clip"
-        case .dismiss:         return "Dismiss Popup"
-        case .focusSearch:     return "Focus Search"
-        case .openSettings:    return "Open Settings"
-        case .navigateUp:      return "Navigate Up"
-        case .navigateDown:    return "Navigate Down"
+        case .togglePopup:      return "Open / Close Popup"
+        case .paste:            return "Paste Selected"
+        case .pastePlainText:   return "Paste as Plain Text"
+        case .copyToClipboard:  return "Copy to Clipboard"
+        case .pin:              return "Toggle Pin"
+        case .delete:           return "Delete Clip"
+        case .dismiss:          return "Dismiss Popup"
+        case .focusSearch:      return "Focus Search"
+        case .openSettings:     return "Open Settings"
+        case .navigateUp:       return "Navigate Up"
+        case .navigateDown:     return "Navigate Down"
         }
     }
 
@@ -38,9 +40,10 @@ enum ShortcutAction: String, CaseIterable, Identifiable {
     var defaultCombo: KeyCombo {
         switch self {
         case .togglePopup:    return KeyCombo(keyCode: 9,   modifiers: [.command, .shift]) // ⌘⇧V
-        case .paste:          return KeyCombo(keyCode: 36,  modifiers: [])                  // ↩
-        case .pastePlainText: return KeyCombo(keyCode: 36,  modifiers: [.shift])            // ⇧↩
-        case .pin:            return KeyCombo(keyCode: 2,   modifiers: [.command])          // ⌘D
+        case .paste:            return KeyCombo(keyCode: 36,  modifiers: [])                  // ↩
+        case .pastePlainText:  return KeyCombo(keyCode: 36,  modifiers: [.shift])            // ⇧↩
+        case .copyToClipboard: return KeyCombo(keyCode: 8,   modifiers: [.command])          // ⌘C
+        case .pin:             return KeyCombo(keyCode: 2,   modifiers: [.command])          // ⌘D
         case .delete:         return KeyCombo(keyCode: 51,  modifiers: [])                  // ⌫
         case .dismiss:        return KeyCombo(keyCode: 53,  modifiers: [])                  // ⎋
         case .focusSearch:    return KeyCombo(keyCode: 3,   modifiers: [.command])          // ⌘F
@@ -226,8 +229,8 @@ final class ShortcutManager {
             let expected = NSEvent.ModifierFlags(rawValue: c.modifierFlagsRaw).intersection(Self.realMods)
             guard c.keyCode == keyCode && expected == mods else { continue }
 
-            // Don't steal ⌫ from the search field while the user is editing the query.
-            if action == .delete,
+            // Don't steal ⌫ or ⌘C from the search field while the user is editing.
+            if (action == .delete || action == .copyToClipboard),
                let responder = NSApp.keyWindow?.firstResponder,
                responder is NSTextView { return false }
 
