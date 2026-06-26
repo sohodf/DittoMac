@@ -97,6 +97,11 @@ final class PopupWindowController: NSWindowController {
         ClipsViewModel.shared.searchText = ""
     }
 
+    func copySelected() {
+        guard let entry = ClipsViewModel.shared.selectedEntry else { return }
+        PasteHelper.write(entry: entry, plainTextOnly: false)
+    }
+
     func paste(plainTextOnly: Bool = false) {
         guard let entry = ClipsViewModel.shared.selectedEntry else { return }
         PasteHelper.write(entry: entry, plainTextOnly: plainTextOnly)
@@ -115,8 +120,9 @@ final class PopupWindowController: NSWindowController {
 
     private func handleAction(_ action: ShortcutAction) {
         switch action {
-        case .paste:          paste()
-        case .pastePlainText: paste(plainTextOnly: true)
+        case .paste:             paste()
+        case .pastePlainText:    paste(plainTextOnly: true)
+        case .copyToClipboard:   copySelected()
         case .dismiss:        dismiss()
         case .navigateDown:   ClipsViewModel.shared.selectNext()
         case .navigateUp:     ClipsViewModel.shared.selectPrevious()
