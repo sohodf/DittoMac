@@ -65,9 +65,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func requestAccessibilityIfNeeded() {
-        if !AXIsProcessTrusted() {
-            let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-            AXIsProcessTrustedWithOptions(opts)
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        let storedVersion = UserDefaults.standard.string(forKey: "lastLaunchedVersion")
+        let isUpgrade = storedVersion != nil && storedVersion != currentVersion
+        UserDefaults.standard.set(currentVersion, forKey: "lastLaunchedVersion")
+
+        guard !AXIsProcessTrusted() else { return }
+
+        if isUpgrade {
+            // Replacing the binary invalidates the TCC entry even for unsigned apps on macOS 13+.
+            // Resetting the entry allows the system to issue a fresh grant.
+            let reset = Process()
+            reset.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+            reset.arguments = ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "com.dittomac.app"]
+            try? reset.run()
+            reset.waitUntilExit()
+
+            if reset.terminationStatus != 0 {
+                showManualAccessibilityResetAlert()
+                return
+            }
+        }
+
+        let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        AXIsProcessTrustedWithOptions(opts)
+    }
+
+    private func showManualAccessibilityResetAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Re-grant Accessibility Access"
+        alert.informativeText = "DittoMac was updated. To restore paste functionality:\n\n1. Open System Settings → Privacy & Security → Accessibility\n2. Find DittoMac and toggle it off, then back on."
+        alert.addButton(withTitle: "Open Settings")
+        alert.addButton(withTitle: "Later")
+        alert.alertStyle = .warning
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
         }
     }
 

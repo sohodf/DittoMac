@@ -205,12 +205,22 @@ tccutil reset Accessibility com.dittomac.app
 
 ## Known gotchas (platform constraints, hard-won)
 
-### 1. TCC identity — NEVER codesign the binary
+### 1. Upgrade path — version must be injected at build time
+`Info.plist` in the repo always has `CFBundleShortVersionString = "1.0.0"`. The CI workflow
+(`build.yml`) uses `PlistBuddy` to overwrite it with the dispatch version tag *before* building.
+Without this, `AppDelegate.requestAccessibilityIfNeeded()` cannot detect upgrades (it compares
+the plist version against `UserDefaults["lastLaunchedVersion"]`). On upgrade detection, the app
+runs `tccutil reset Accessibility com.dittomac.app` to clear the stale TCC entry, then
+re-prompts. If `tccutil` fails (requires sudo), `showManualAccessibilityResetAlert()` guides
+the user to toggle the switch in System Settings → Privacy & Security → Accessibility.
+
+### 2. TCC identity — NEVER codesign the binary
 macOS TCC (Transparency, Consent, Control) tracks apps by *code identity*. An ad-hoc signed
 app (`codesign --force --sign -`) gets a new identity on *every build*, so Accessibility
 permission is lost after each rebuild. An **unsigned** app is tracked by **bundle path** — the
 grant persists as long as the `.app` lives at the same path. Both the Makefile and the CI
-workflow deliberately omit codesign for this reason.
+workflow deliberately omit codesign for this reason. Note: on macOS 13+, even unsigned apps
+lose their TCC entry when the binary is replaced, which is why upgrade detection was added.
 
 ### 2. CGEvent tap must be `.cghidEventTap`
 On macOS 14+, `.cgAnnotatedSessionEventTap` silently fails to inject keyboard events.

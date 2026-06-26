@@ -22,6 +22,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set version in Info.plist
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          VERSION="${VERSION#v}"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" Info.plist
+
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
 
@@ -50,16 +57,19 @@ jobs:
 
       - name: Create DMG
         run: |
+          TAG="${{ github.event.inputs.version }}"
+          DMG_NAME="DittoMac-${TAG}.dmg"
           mkdir -p dmg_staging
           cp -r DittoMac.app dmg_staging/
           ln -s /Applications dmg_staging/Applications
           hdiutil create \
-            -volname "DittoMac" \
+            -volname "DittoMac ${TAG}" \
             -srcfolder dmg_staging \
             -ov -format UDZO \
-            DittoMac.dmg
-          DMG_SIZE=$(du -sh DittoMac.dmg | cut -f1)
+            "$DMG_NAME"
+          DMG_SIZE=$(du -sh "$DMG_NAME" | cut -f1)
           echo "dmg_size=$DMG_SIZE" >> "$GITHUB_ENV"
+          echo "dmg_name=$DMG_NAME" >> "$GITHUB_ENV"
           rm -rf dmg_staging DittoMac.app .build
 
       - name: Generate release notes
@@ -84,7 +94,7 @@ jobs:
 
           ### Install
 
-          1. Download **DittoMac.dmg** and open it
+          1. Download **${{ env.dmg_name }}** and open it
           2. Drag **DittoMac.app** to your Applications folder
           3. Remove the macOS quarantine flag (required for unsigned apps):
           \`\`\`bash
@@ -92,7 +102,7 @@ jobs:
           \`\`\`
           4. Open DittoMac — grant **Accessibility** permission when prompted
 
-          **Asset:** \`DittoMac.dmg\` (${{ env.dmg_size }})
+          **Asset:** \`${{ env.dmg_name }}\` (${{ env.dmg_size }})
           NOTES
           )
           echo "body<<EOF" >> "$GITHUB_OUTPUT"
@@ -105,6 +115,6 @@ jobs:
           tag_name: ${{ github.event.inputs.version }}
           name: DittoMac ${{ github.event.inputs.version }}
           body: ${{ steps.notes.outputs.body }}
-          files: DittoMac.dmg
+          files: ${{ env.dmg_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
