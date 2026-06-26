@@ -229,8 +229,8 @@ final class ShortcutManager {
             let expected = NSEvent.ModifierFlags(rawValue: c.modifierFlagsRaw).intersection(Self.realMods)
             guard c.keyCode == keyCode && expected == mods else { continue }
 
-            // Don't steal ⌫ or ⌘C from the search field while the user is editing.
-            if (action == .delete || action == .copyToClipboard),
+            // Don't steal ⌫ from the search field while the user is editing the query.
+            if action == .delete,
                let responder = NSApp.keyWindow?.firstResponder,
                responder is NSTextView { return false }
 
