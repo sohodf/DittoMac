@@ -65,43 +65,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func requestAccessibilityIfNeeded() {
-        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
-        let storedVersion = UserDefaults.standard.string(forKey: "lastLaunchedVersion")
-        let isUpgrade = storedVersion != nil && storedVersion != currentVersion
-        UserDefaults.standard.set(currentVersion, forKey: "lastLaunchedVersion")
-
         guard !AXIsProcessTrusted() else { return }
-
-        if isUpgrade {
-            // Replacing the binary invalidates the TCC entry even for unsigned apps on macOS 13+.
-            // Resetting the entry allows the system to issue a fresh grant.
-            let reset = Process()
-            reset.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
-            reset.arguments = ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "com.dittomac.app"]
-            try? reset.run()
-            reset.waitUntilExit()
-
-            if reset.terminationStatus != 0 {
-                showManualAccessibilityResetAlert()
-                return
-            }
-        }
-
+        // Clear any stale TCC entry before prompting. tccutil reset is idempotent
+        // (safe on first install) and works without sudo on macOS 13+. This is
+        // necessary because replacing the binary invalidates the TCC entry even
+        // for unsigned path-tracked apps, leaving a stale row that blocks re-grant.
+        resetAccessibilityPermission()
         let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         AXIsProcessTrustedWithOptions(opts)
     }
 
-    private func showManualAccessibilityResetAlert() {
-        let alert = NSAlert()
-        alert.messageText = "Re-grant Accessibility Access"
-        alert.informativeText = "DittoMac was updated. To restore paste functionality:\n\n1. Open System Settings → Privacy & Security → Accessibility\n2. Find DittoMac and toggle it off, then back on."
-        alert.addButton(withTitle: "Open Settings")
-        alert.addButton(withTitle: "Later")
-        alert.alertStyle = .warning
-        NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertFirstButtonReturn {
-            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-        }
+    @discardableResult
+    private func resetAccessibilityPermission() -> Bool {
+        let reset = Process()
+        reset.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        reset.arguments = ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "com.dittomac.app"]
+        try? reset.run()
+        reset.waitUntilExit()
+        return reset.terminationStatus == 0
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -138,6 +119,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         clearItem.target = self
         menu.addItem(clearItem)
         menu.addItem(.separator())
+        let accessibilityItem = NSMenuItem(title: "Reset Accessibility Permission…", action: #selector(resetAccessibility), keyEquivalent: "")
+        accessibilityItem.target = self
+        menu.addItem(accessibilityItem)
+        menu.addItem(.separator())
         let quitItem = NSMenuItem(title: "Quit DittoMac", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quitItem)
         statusMenu = menu
@@ -168,6 +153,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func openSettings() {
         SettingsWindowController.shared.show()
+    }
+
+    @objc private func resetAccessibility() {
+        resetAccessibilityPermission()
+        let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        AXIsProcessTrustedWithOptions(opts)
     }
 
     @objc private func clearHistory() {
