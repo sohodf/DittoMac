@@ -179,10 +179,11 @@ final class DatabaseManager: @unchecked Sendable {
 
     func recordPaste(id: Int64) async throws {
         guard let pool = dbPool else { return }
+        let now = Date()
         try await pool.write { db in
             try db.execute(sql: """
-                UPDATE clips SET lastPastedAt = ?, pasteCount = pasteCount + 1 WHERE id = ?
-            """, arguments: [Date(), id])
+                UPDATE clips SET createdAt = ?, lastPastedAt = ?, pasteCount = pasteCount + 1 WHERE id = ?
+            """, arguments: [now, now, id])
         }
     }
 

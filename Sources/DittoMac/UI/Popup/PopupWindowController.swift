@@ -100,6 +100,11 @@ final class PopupWindowController: NSWindowController {
     func copySelected() {
         guard let entry = ClipsViewModel.shared.selectedEntry else { return }
         PasteHelper.write(entry: entry, plainTextOnly: false)
+        let app = previousApp
+        dismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            app?.activate(options: .activateIgnoringOtherApps)
+        }
     }
 
     func paste(plainTextOnly: Bool = false) {
